@@ -4,12 +4,14 @@ import React, { createContext, useState, useContext } from 'react';
 type Message = {
   role: 'user' | 'assistant';
   content: string;
+  timestamp: number;
 };
 
 type Chat = {
   id: string;
   title: string;
   messages: Message[];
+  createdAt: number;
 };
 
 type ChatContextType = {
@@ -18,70 +20,90 @@ type ChatContextType = {
   createNewChat: () => void;
   sendMessage: (content: string) => void;
   getCurrentChat: () => Chat | undefined;
+  switchChat: (chatId: string) => void;
 };
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [chats, setChats] = useState<Chat[]>([]);
-  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const [chats, setChats] = useState<Chat[]>(() => {
+    const savedChats = localStorage.getItem('chats');
+    return savedChats ? JSON.parse(savedChats) : [];
+  });
+  const [currentChatId, setCurrentChatId] = useState<string | null>(() => {
+    const savedCurrentChatId = localStorage.getItem('currentChatId');
+    return savedCurrentChatId || null;
+  });
 
-  // Create a new chat
+  // Save chats to localStorage whenever they change
+  React.useEffect(() => {
+    localStorage.setItem('chats', JSON.stringify(chats));
+  }, [chats]);
+
+  // Save currentChatId to localStorage whenever it changes
+  React.useEffect(() => {
+    if (currentChatId) {
+      localStorage.setItem('currentChatId', currentChatId);
+    }
+  }, [currentChatId]);
+
   const createNewChat = () => {
     const newChatId = Date.now().toString();
     const newChat: Chat = {
       id: newChatId,
       title: 'New Chat',
       messages: [],
+      createdAt: Date.now(),
     };
     
-    setChats([newChat, ...chats]);
+    setChats(prevChats => [newChat, ...prevChats]);
     setCurrentChatId(newChatId);
   };
 
-  // Send a message in the current chat
+  const switchChat = (chatId: string) => {
+    setCurrentChatId(chatId);
+  };
+
   const sendMessage = (content: string) => {
     if (!currentChatId) {
-      // If no chat exists, create one
       createNewChat();
-      // We need to wait for state update, so we queue this
-      setTimeout(() => {
-        addMessageToCurrentChat(content);
-      }, 0);
+      setTimeout(() => addMessageToCurrentChat(content), 0);
       return;
     }
-    
     addMessageToCurrentChat(content);
   };
 
   const addMessageToCurrentChat = (content: string) => {
+    const timestamp = Date.now();
+    
     setChats(currentChats => {
       return currentChats.map(chat => {
         if (chat.id === currentChatId) {
-          // Add user message
           const userMessage: Message = {
             role: 'user',
             content,
+            timestamp,
           };
           
-          // Add AI response (simulated)
           const aiMessage: Message = {
             role: 'assistant',
             content: 'This is a placeholder response. The actual AI backend will be implemented separately.',
+            timestamp: timestamp + 1,
           };
           
-          return {
+          const updatedChat = {
             ...chat,
             messages: [...chat.messages, userMessage, aiMessage],
-            title: content.slice(0, 30) + (content.length > 30 ? '...' : ''), // Use first message as title
+            title: chat.messages.length === 0 ? content.slice(0, 30) + (content.length > 30 ? '...' : '') : chat.title,
           };
+          
+          return updatedChat;
         }
         return chat;
       });
     });
   };
 
-  // Get the current active chat
   const getCurrentChat = () => {
     return chats.find(chat => chat.id === currentChatId);
   };
@@ -93,7 +115,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentChatId, 
         createNewChat, 
         sendMessage,
-        getCurrentChat
+        getCurrentChat,
+        switchChat
       }}
     >
       {children}

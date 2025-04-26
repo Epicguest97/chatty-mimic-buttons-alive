@@ -11,9 +11,10 @@ import {
   SidebarMenuButton,
 } from '@/components/ui/sidebar';
 import { useChat } from '@/context/ChatContext';
+import { cn } from '@/lib/utils';
 
 const ChatSidebar = () => {
-  const { chats, createNewChat } = useChat();
+  const { chats, createNewChat, currentChatId, switchChat } = useChat();
   
   return (
     <Sidebar className="bg-[#202123] border-r border-[#4d4d4f]">
@@ -30,7 +31,13 @@ const ChatSidebar = () => {
           <SidebarMenu>
             {chats.map((chat) => (
               <SidebarMenuItem key={chat.id}>
-                <SidebarMenuButton className="w-full text-left text-sm text-white/80 hover:bg-white/10">
+                <SidebarMenuButton 
+                  onClick={() => switchChat(chat.id)}
+                  className={cn(
+                    "w-full text-left text-sm text-white/80 hover:bg-white/10",
+                    currentChatId === chat.id && "bg-white/10"
+                  )}
+                >
                   {chat.title}
                 </SidebarMenuButton>
               </SidebarMenuItem>
